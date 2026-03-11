@@ -1,4 +1,4 @@
-# Supplemental Resources and Example Code for "Best Practices for Using iNaturalist Data in Scientific Research"
+# Supplemental Resources and Example Code for "Guidelines and best practices for the scientific use of global iNaturalist data"
 
 This repository contains supplemental resources and example code for accessing iNaturalist data, as referenced in "Best Practices for Using iNaturalist Data in Scientific Research." These materials focus on retrieving data through the iNaturalist API when needed data is not available via GBIF or the iNaturalist Export Tool. 
 
