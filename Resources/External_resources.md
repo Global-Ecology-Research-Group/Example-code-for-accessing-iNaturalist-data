@@ -6,7 +6,7 @@ There are many available resources for accessing data via the API. Here we list 
 
 [API recommended practices:](https://www.inaturalist.org/pages/api+recommended+practices) This webpage documents the best practices for using the iNaturalist API including authentication, pagination, bulk requests, query rate, and building software using the API. Anyone who plans to use the API to access data should read this page and respect the outlined practices.
 
-[iNaturalist API](https://api.inaturalist.org/v1/docs/): Use this webpage to view all available endpoints and parameters in version 1 of the iNaturalist API. It also allows you to enter parameters directly, and will generate the corresponding request URL along with a sample of the response and headers.
+[iNaturalist API](https://api.inaturalist.org/v2/docs/): Use this webpage to view all available endpoints and parameters in version 2 of the iNaturalist API. It also allows you to enter parameters directly, and will generate the corresponding request URL along with a sample of the response and headers.
 
 [How to use iNaturalist's search URLs](https://www.inaturalist.org/pages/search+urls#about): Use this webpage to learn more about modifying request URLs.
 

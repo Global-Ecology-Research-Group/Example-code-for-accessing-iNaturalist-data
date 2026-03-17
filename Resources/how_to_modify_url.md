@@ -3,21 +3,21 @@
 To acquire data using the iNaturalist API, a customized URL must be constructed. The base URL for the current API version is:
 
 ```         
-https://api.inaturalist.org/v1
+https://api.inaturalist.org/v2
 ```
 
 From there, select an endpoint to retrieve data. The most commonly used endpoint is `observations`, but other endpoints include `places`, `projects`, `taxa`, `observation_tiles`, and more. Many endpoints also offer additional resources or paths to access specific types of data. For example, within the `observations` endpoint, you can access resources such as `histogram`, `identifiers`, `observers`, `species_counts`, and others. For example, to retrieve species counts specifically, the URL would be:
 
 ```         
-https://api.inaturalist.org/v1/observations/species_counts
+https://api.inaturalist.org/v2/observations/species_counts
 ```
 
-To see a list of all endpoints and available parameters, visit the [iNaturalist API website](iNaturalist%20API). The site conveniently allows users to enter parameters and automatically generates the corresponding request URL. It also provides a view of the response body and headers, which can help determine whether the desired data is returned before downloading it.
+To see a list of all endpoints and available parameters, visit the [iNaturalist API website](https://api.inaturalist.org/v2/docs/). The site conveniently allows users to enter parameters and automatically generates the corresponding request URL. It also provides a view of the response body and headers, which can help determine whether the desired data is returned before downloading it.
 
 When parameters are applied, a “?” is added to the end of the base URL, and all filtering options are listed afterward. Multiple parameters are separated using “&”. For example:
 
 ```         
-https://api.inaturalist.org/v1/observations?native=true&taxon_id=47157&acc_below=1000&order=desc&order_by=created_at
+https://api.inaturalist.org/v2/observations?native=true&taxon_id=47157&acc_below=1000&order=desc&order_by=created_at
 ```
 
 ## How to acquire ID values
@@ -46,6 +46,6 @@ Alternatively, the commas can be encoded as “%2C”, which will produce the sa
 
 # Resources
 
-[The iNaturalist API documentation](https://api.inaturalist.org/v1/docs/)
+[The iNaturalist API documentation](https://api.inaturalist.org/v2/docs/)
 
 For a more comprehensive overview on how to use iNaturalist's search URLs see [this website](https://www.inaturalist.org/pages/search+urls).

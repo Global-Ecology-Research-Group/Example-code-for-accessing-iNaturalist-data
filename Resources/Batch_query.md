@@ -1,12 +1,12 @@
 # Batch Query Data
 
-This reference explains how to run multiple queries using the iNaturalist Export Tool and the iNaturalist API when the amount of data needed exceeds the request limits. These request limits are 200,000 for the iNaturalist Export Tool and 10,000 for the iNaturalist API. The processes for batch querying each dataset rely on the same fundamental steps, but they are executed differently. We first describe the best practices for batch queries, then outline the procedures for (1) the iNaturalist Export Tool and (2) the iNaturalist API.
+This reference explains how to run multiple queries using the iNaturalist Export Tool and the iNaturalist API when the amount of data needed exceeds the request limits. These request limits are 200,000 observations for the iNaturalist Export Tool and 10,000 requests per 24 hours (which may include up to 200 observations per request) for the iNaturalist API. The processes for batch querying each dataset rely on the same fundamental steps, but they are executed differently. We first describe the best practices for batch queries, then outline the procedures for (1) the iNaturalist Export Tool and (2) the iNaturalist API.
 
 ## Best practices for batch queries
 
 Batch processing data can be time-consuming and places additional strain on servers, so researchers should carefully consider whether it is necessary before running batch queries. If the required data are available through GBIF, they should be downloaded directly from [GBIF](https://www.gbif.org/). If iNaturalist exported data are needed, all possible filters should be applied before downloading. Researchers should also consider whether summarized datasets can be used instead of full observation records. For instance, if only species counts are needed, the `observations/species_counts` API endpoint should be used rather than downloading all observation data. Because the iNaturalist Export Tool allows larger batches to be downloaded, 200,000 compared to the 10,000 of the iNaturalist API, the iNaturalist Export Tool should be used when possible. Keep in mind that batch querying should not be used to scrape data. In addition to being time-intensive, excessive batch queries place unnecessary strain on the servers. This approach should be reserved for medium-sized datasets and should always follow the [API Recommended Practices](https://www.inaturalist.org/pages/api+recommended+practices). If a particular research question requires large amounts of iNaturalist export data, contact help\@inaturalist.org for support.
 
-When querying the dataset, you should maximize the amount of data downloaded per request. When using the iNaturalist Export Tool, downloads should be close to, but not exceed, 200,000 records, while API requests should return 10,000 records or fewer. Requesting a small number of large datasets places less strain on the server than making many small requests.
+When querying the dataset, you should maximize the amount of data downloaded per request. When using the iNaturalist Export Tool, downloads should be close to, but not exceed, 200,000 records, while API returns 200 observations per request. Requesting a small number of large datasets places less strain on the server than making many small requests.
 
 ## Query data on iNaturalist Export Tool
 
@@ -32,7 +32,7 @@ When using the iNaturalist Export Tool, keep in mind that only one request can b
 
 ## Query data using the iNaturalist API
 
-The iNaturalist API only allows 10,000 records to be downloaded at a time, so querying this data may be pertinent. Similar queries as the iNaturalist Export Tool may be used, but the iNaturalist API offers additional parameters that may be used to query the data.
+The iNaturalist API call can return up to 200 observations per request, so querying this data may be pertinent. Similar queries as the iNaturalist Export Tool may be used, but the iNaturalist API offers additional parameters that may be used to query the data.
 
 When using the iNaturalist API, you can extract the content of the request to get the total results. This can be done through the [iNaturalist API](https://api.inaturalist.org/v1/docs/#!/Observations/get_observations) webpage by entering filtering parameters then trying out the request. Under "Response Body," at the top of the text you will see total_results. This tells you how many results the query returns. Alternatively, you can do this through code by retrieving content of API request and examining the total_results data field. For example, see code snippet below:
 
@@ -41,7 +41,7 @@ library(httr)
 library(jsonlite)
 
 # API Request URL
-api_request <- "https://api.inaturalist.org/v1/observations?place_id=21&taxon_id=4715&order=desc&order_by=created_at"
+api_request <- "https://api.inaturalist.org/v2/observations?place_id=21&taxon_id=4715&order=desc&order_by=created_at"
 
 # send HTTP GET request to the iNaturalist API
 resp <- GET(api_request)
@@ -55,6 +55,4 @@ data_parsed <- fromJSON(
 print(data_parsed$total_results)
 ```
 
-If the total results is more than 10,000 then you will need to query the data. This can be done by making new API calls. While the page and per_page options can be used to create a loop to retrieve more data than the max allowed per page, this is only recommended for requests of less than 10,000 observations. Instead, iNaturalist recommends that new API calls be made using the observation ID field. To do this, adjust the API request to order by observation ID. To do this, add `order_by=id` and `order=asc` to the API request. Then the `id_above` parameter can be used to filter the dataset. We provide a code example of this in the Example R Code and the Example Python Code (see `observations-more-than-10k`).
-
-When running batch queries keep in mind the iNaturalist query rate which is 1 request per second or about 10,000 API requests per day. Throttles should be added into code to ensure that usage is under these limits.
+If there are more than 200 results, then multiple requests will need to be made to the API to pull all the data. This can be done using the `per_page` parameter for up to 50 pages. This method works for up to 10,000 observations if requesting 200 observations per page. If more than 50 pages of data are needed, then separate queries will need to be made using the id_above parameter (see [Pagination section of API Recommend Practices](https://www.inaturalist.org/pages/api+recommended+practices#Pagination) for more information). When running batch queries keep in mind the iNaturalist query rate which is 1 request per second or 10,000 API requests per day. Throttles should be added into code to ensure that usage is under these limits.
