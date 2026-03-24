@@ -1,6 +1,8 @@
-# Code to get observation data for a specified region, taxon, or project
+# Code to get observation data for a specified region, taxon, or project 
 
-# The output is a table containing observation data and all associated fields, plus a CSV of selected columns
+# This script can only handle URL requests that return fewer than 10,000 observations due to pagination (see https://www.inaturalist.org/pages/api+recommended+practices)
+
+# The output is a table containing observation data and all selected data fields
 
 # Check and install required packages
 required_packages <- c("httr", "jsonlite", "dplyr", "purrr")
@@ -19,11 +21,16 @@ library(dplyr)
 library(purrr)
 
 # Get the base URL
-base_url <- "https://api.inaturalist.org/v1/observations"
+base_url <- "https://api.inaturalist.org/v2/observations"
 rate_limit_delay <- 1  # seconds between requests (60 requests per minute max)
 
+# Before creating a customized request, the v2 API requires that users specify desired data fields
+# The code below will provide an example of all data available from iNaturalist along with field names
+fields <- fromJSON(content(GET("https://api.inaturalist.org/v2/observations?fields=all"), as = "text", encoding = "UTF-8"))
+colnames(fields$results)
+
 # Use this code to customize the request
-# See https://api.inaturalist.org/v1/docs/#!/Observations/get_observations for all possible parameters
+# See https://api.inaturalist.org/v2/docs/#!/Observations/get_observations for all possible parameters
 params <- list(
   # enter one or more taxon IDs
   taxon_id = paste(47224, 47607, sep=","), # butterflies (Papilionoidea) and owlet moths (Noctuoidea)
@@ -41,6 +48,12 @@ params <- list(
   
   # Research Grade observations only
   quality_grade = "research",
+  
+  # Select specific columns to export from iNaturalist (see lines 27-30 above for all possible fields)
+  # If all fields are needed, you may instead specify fields = "all"
+  fields = paste("id", "uuid", "quality_grade", "created_at", "observed_on", "location", 
+                 "obscured", "public_positional_accuracy", "license_code", "description", 
+                 "community_taxon_id", "taxon.name", "taxon.rank", "taxon.id", "user.login", sep=","),
   
   # Set per page to the maximum allowed
   per_page = 200                         
@@ -74,6 +87,7 @@ message("Estimated pages: ", total_pages)
 message(sprintf("Rough estimate of runtime: ~%.1f seconds (~%.1f minutes)", 
                 estimated_seconds, estimated_minutes))
 # keep in mind that the actual time is variable on how long each individual request takes which is not always consistent
+# if total observations is >10,000 this script will not work due to pagination limits. See observations-more-than-10k.R script.
 
 # Fetch all observations
 page <- 1
@@ -116,18 +130,8 @@ head(output_data)
 # Print total observations
 cat("Total observations fetched:", nrow(output_data), "\n")
 
-# Select specified columns to write to CSV (many more are available)
-columns_to_keep <- c(
-  "id", "uuid", "quality_grade", "created_at", "observed_on", "location", 
-  "obscured", "public_positional_accuracy", "license_code", "description", 
-  "community_taxon_id", "taxon.name", "taxon.rank", "taxon.id", "user.login"
-)
-
-available_columns <- intersect(columns_to_keep, colnames(output_data))
-csv_data <- output_data[, available_columns, drop = FALSE]
-
 # Write to CSV
 output_file <- "observations.csv" # if the data are to be written in a folder path add that here (e.g., "Data/observations.csv")
-write.csv(csv_data, file = output_file, row.names = FALSE)
+write.csv(output_data, file = output_file, row.names = FALSE)
 cat("\nData written to", output_file, "\n")
-cat("Rows:", nrow(csv_data), ", Columns:", ncol(csv_data), "\n")
+cat("Rows:", nrow(output_data), ", Columns:", ncol(output_data), "\n")

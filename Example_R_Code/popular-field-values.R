@@ -1,6 +1,7 @@
 # Code to get relevant controlled term values and monthly histogram data
 
-# The output is a table list of observation count by month and relevant control term values
+# The output is a table with observation counts, per-month histogram columns, and
+# controlled attribute/value metadata, plus a CSV.
 
 # Check and install required packages
 required_packages <- c("httr", "jsonlite", "dplyr", "purrr")
@@ -19,7 +20,7 @@ library(dplyr)
 library(purrr)
 
 # Get the base URL
-base_url <- "https://api.inaturalist.org/v1/observations/popular_field_values"
+base_url <- "https://api.inaturalist.org/v2/observations/popular_field_values"
 rate_limit_delay <- 1  # seconds between requests (60 requests per minute max)
 
 # Use this code to customize the request
@@ -29,7 +30,13 @@ params <- list(
   taxon_id = 3, # Birds
   
   # enter one or more place IDs
-  place_id = 18 # Texas, US
+  place_id = 18, # Texas, US
+  
+  # obtain all field values
+  fields = "all",
+  
+  per_page = 200
+  
 )
 
 # Make one test request and document the run time

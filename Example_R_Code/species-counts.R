@@ -1,7 +1,7 @@
 # Code to get species count data for a specified region, taxon, or project
 
 # The output is a table with a count and taxonomic information for all species
-# in the defined dataset, plus a CSV of selected columns.
+# in the defined dataset, plus a CSV of selected fields. 
 
 # Check and install required packages
 required_packages <- c("httr", "jsonlite", "dplyr", "purrr")
@@ -20,8 +20,13 @@ library(dplyr)
 library(purrr)
 
 # Get the base URL
-base_url <- "https://api.inaturalist.org/v1/observations/species_counts"
+base_url <- "https://api.inaturalist.org/v2/observations/species_counts"
 rate_limit_delay <- 1  # seconds between requests (60 requests per minute max)
+
+# Before creating a customized request, the v2 API requires that users specify desired data fields
+# The code below will provide an example of all data available from iNaturalist along with field names
+fields <- fromJSON(content(GET("https://api.inaturalist.org/v2/observations/species_counts?fields=all"), as = "text", encoding = "UTF-8"))
+colnames(fields$results %>% unnest_wider(taxon, names_sep = "."))
 
 # Use this code to customize the request
 # See https://api.inaturalist.org/v1/docs/#!/Observations/get_observations_species_counts for all possible parameters
@@ -41,6 +46,10 @@ params <- list(
   
   # Research Grade observations only
   quality_grade = "research",
+  
+  # Specify desired data fields (see lines 28-29 above for all available fields)
+  fields = paste("count", "taxon.id", "taxon.rank", "taxon.name", "taxon.preferred_common_name",
+                 sep=","),
   
   # results per page, which we specified as 500, the maximum allowed for this API call
   per_page = 500                        
@@ -82,15 +91,8 @@ message(sprintf("Rough estimate of runtime: ~%.1f seconds (~%.1f minutes)",
 # fetch the first page
 all_pages <- list()
 
-if (length(data_parsed$results) > 0) {
-  page1_df <- as_tibble(data_parsed$results)
-  all_pages[[1]] <- page1_df
-  message("Fetched page 1")
-}
-
 # fetch additional pages if needed
-if (total_pages > 1) {
-  for (page in 2:total_pages) {
+for (page in 1:total_pages) {
     message("Fetching page ", page)
     
     query_url <- modifyList(params, list(page = page))
@@ -107,16 +109,10 @@ if (total_pages > 1) {
     
     # Sleep between requests except after last page
     if (page < total_pages) Sys.sleep(rate_limit_delay)
-  }
 }
 
 # Combine all pages
 output_data <- bind_rows(all_pages)
-
-# Select specific columns of interest
-columns_to_keep <- c("count", "taxon.id", "taxon.rank", "taxon.name", "taxon.preferred_common_name")
-available_columns <- intersect(columns_to_keep, colnames(output_data))
-output_data <- output_data[, available_columns, drop = FALSE]
 
 # Write CSV
 output_file <- "species_counts.csv" # if the data are to be written in a folder path add that here (e.g., "Data/observations.csv")

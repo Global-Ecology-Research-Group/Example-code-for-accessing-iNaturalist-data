@@ -1,6 +1,6 @@
 # Code to get observers matching search criteria
 
-# The output is a table list of observers, count of observations based on search criteria, and distinct taxa of rank species observed
+# The output is a table of observation counts, species counts, observers, and observer details, plus a CSV.
 
 # Check and install required packages
 required_packages <- c("httr", "jsonlite", "dplyr", "purrr")
@@ -19,8 +19,13 @@ library(dplyr)
 library(purrr)
 
 # Get the base URL
-base_url <- "https://api.inaturalist.org/v1/observations/observers"
+base_url <- "https://api.inaturalist.org/v2/observations/observers"
 rate_limit_delay <- 1  # seconds between requests (60 requests per minute max)
+
+# Before creating a customized request, the v2 API requires that users specify desired data fields
+# The code below will provide an example of all data available from iNaturalist along with field names
+fields <- fromJSON(content(GET("https://api.inaturalist.org/v2/observations?fields=all"), as = "text", encoding = "UTF-8"))
+colnames(fields$results)
 
 # Use this code to customize the request
 # See https://api.inaturalist.org/v1/docs/#!/Observations/get_observations_observers for all possible parameters
@@ -37,6 +42,11 @@ params <- list(
   
   # Research Grade observations only
   quality_grade = "research",
+  
+  # Specify desired data fields (see lines 28-29 above for all available fields)
+  fields = paste("observation_count", "species_count", "count", "user.id", "user.login", 
+                 "user.created_at", "user.name", "user.observations_count",
+                 "user.identifications_count", sep=","),
   
   # Set per page to the maximum allowed
   per_page = 200                         
@@ -70,6 +80,7 @@ message("Estimated pages: ", total_pages)
 message(sprintf("Rough estimate of runtime: ~%.1f seconds (~%.1f minutes)", 
                 estimated_seconds, estimated_minutes))
 # keep in mind that the actual time is variable on how long each individual request takes which is not always consistent
+# If total observations is greater than 500, then this script will only return the first 500 results.
 
 # Fetch all observations
 page <- 1
@@ -111,6 +122,11 @@ head(output_data)
 
 # Print total observations
 cat("Total data fetched:", nrow(output_data), "\n")
+
+# Check to see if output data includes all results for specified endpoint.
+ifelse(total_results > nrow(output_data), 
+       "Note: total_results is larger than the rows in this response — this endpoint returns at most 500 ranked identifiers per request, so this response is only a subset.",
+       "This endpoint returned all results for the specified endpoint")
 
 # Write to CSV
 output_file <- "observer_data.csv" # if the data are to be written in a folder path add that here (e.g., "Data/observations.csv")
