@@ -3,7 +3,7 @@
 # The output is a table containing observation data with columns for annotation group and value within that group
 
 # Check and install required packages
-required_packages <- c("httr", "jsonlite", "dplyr", "tidyr", "purrr", "readr", "fs", "progress")
+required_packages <- c("httr", "jsonlite", "dplyr", "purrr")
 
 for (pkg in required_packages) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
@@ -16,10 +16,7 @@ for (pkg in required_packages) {
 library(httr)
 library(jsonlite)
 library(dplyr)
-library(tidyr)
 library(purrr)
-library(fs)
-library(progress)
 
 # Define variables 
 
@@ -93,12 +90,11 @@ VAL <- list(
   "26" = "Track",
   
   # Established status
-  "33" = "Established",
   "34" = "Not Established"
 )
 
 # Customize parameters for API call
-# In this example, we pull all common pawpaw observations in Virgina, US during
+# In this example, we pull all common pawpaw observations in Virginia, US during
 # 2025 that have at least one annotation
 params <- list(
   taxon_id = paste(50897, collapse = ","), # Common pawpaw example
@@ -107,23 +103,19 @@ params <- list(
   d2 = "2025-12-31",
   quality_grade = "research",
   term_id = paste(names(ATTR), collapse = ","),
-  # Specify desired data fields (see lines 32-35 for all options)
+  # Specify desired data fields (see lines 29-32 for all options)
   per_page = 200
 )
 
-# Observation fields and annotation fields will be specified seperately
-
-# Specify observation fields
+# Fields to request in the response, including annotation attributes and values
 fields_obs <- params
-fields_obs$fields <- paste("id", "uuid", "quality_grade", "created_at", "observed_on", "location", 
-                       "obscured", "public_positional_accuracy", "license_code", "description", 
-                       "community_taxon_id", "taxon.name", "taxon.rank", "taxon.id", "user.login", sep=",")
-
-# Specify annotation fields, here we are obtaining all related fields
-fields_annotations <- params
-fields_annotations$fields <- "(annotations:all)"
-
-# Before making API call, get time estimate of that call for observation data
+fields_obs$fields <- paste(
+  "id", "uuid", "quality_grade", "created_at", "observed_on", "location",
+  "obscured", "public_positional_accuracy", "license_code", "description",
+  "community_taxon_id", "taxon.name", "taxon.rank", "taxon.id", "user.login",
+  "annotations.controlled_attribute_id", "annotations.controlled_value_id",
+  sep = ","
+)
 
 # Make one test request and document the run time
 start_time <- Sys.time()
@@ -144,13 +136,13 @@ total_pages <- ceiling(total_results / params$per_page)
 
 # Estimate runtime given 1 second between requests
 # This lag ensures that no more than 60 requests are made per minute to meet the iNaturalist rate limits
-rate_limit_pause <- time_per_request + rate_limit_delay
-estimated_seconds <- total_pages * rate_limit_pause *2
-estimated_minutes <- estimated_seconds / 60 *2
+rate_limit_pause <- time_per_request + DELAY
+estimated_seconds <- total_pages * rate_limit_pause
+estimated_minutes <- estimated_seconds / 60
 
 message("Total observations: ", total_results)
 message("Estimated pages: ", total_pages)
-message(sprintf("Rough estimate of runtime to obtain observation and annotation data: ~%.1f seconds (~%.1f minutes)", 
+message(sprintf("Rough estimate of runtime: ~%.1f seconds (~%.1f minutes)",
                 estimated_seconds, estimated_minutes))
 # keep in mind that the actual time is variable on how long each individual request takes which is not always consistent
 
@@ -159,6 +151,7 @@ message(sprintf("Rough estimate of runtime to obtain observation and annotation 
 # Use the API to obtain all observations from the custom URL
 all_pages <- list()
 page <- 1
+rows_fetched <- 0
 repeat {
   message("Fetching page ", page)
   query_url <- modifyList(fields_obs, list(page = page))
@@ -172,6 +165,9 @@ repeat {
   if (nrow(results_df) == 0) break
   
   all_pages[[page]] <- results_df
+  rows_fetched <- rows_fetched + nrow(results_df)
+  if (rows_fetched >= total_results) break
+  
   page <- page + 1
   Sys.sleep(DELAY)
 }
@@ -179,71 +175,38 @@ repeat {
 obs_df <- bind_rows(all_pages)
 message("Total observations fetched: ", nrow(obs_df))
 
-# Use the API to obtain all annotations
-all_pages <- list()
-page <- 1
-repeat {
-  message("Fetching page ", page)
-  query_url <- modifyList(fields_annotations, list(page = page))
-  resp <- GET(base_url, query = query_url)
-  stop_for_status(resp)
-  
-  data_json <- content(resp, as = "text", encoding = "UTF-8")
-  data_parsed <- fromJSON(data_json, flatten = TRUE)
-  results_df <- as_tibble(data_parsed$results)
-  
-  if (nrow(results_df) == 0) break
-  
-  all_pages[[page]] <- results_df
-  page <- page + 1
-  Sys.sleep(DELAY)
-}
+annotation_rows <- map_dfr(seq_len(nrow(obs_df)), function(i) {
+  annos <- obs_df$annotations[[i]]
+  obs_id <- obs_df$id[i]
 
-annotations_df <- bind_rows(all_pages)
-message("Total annotations fetched: ", nrow(annotations_df))
-
-# bind data together using uuid
-output_data <- left_join(obs_df, annotations_df, by="uuid")
-
-# Convert the numeric annotations to text based on the ATTR and VAL lists created earlier
-get_attr <- function(x) {
-  if (is.list(x) && "controlled_attribute_id" %in% names(x)) {
-    return(as.character(x$controlled_attribute_id))
-  }
-  return(NA_character_)
-}
-
-get_val <- function(x) {
-  if (is.list(x) && "controlled_value_id" %in% names(x)) {
-    return(as.character(x$controlled_value_id))
-  }
-  return(NA_character_)
-}
-
-annotations_data <- map_dfr(seq_len(nrow(output_data)), function(i) {
-  annos <- output_data$annotations[[i]]
-  obs_id <- output_data$id[i]
-  
   if (is.null(annos) || length(annos) == 0) return(NULL)
-  
-    annos_df <- as_tibble(annos)
-  
-    if (nrow(annos_df) == 0) return(NULL)
-  
+
+  annos_df <- as_tibble(annos)
+
+  if (nrow(annos_df) == 0) return(NULL)
+
   annos_df %>%
     mutate(
       id = obs_id,
       controlled_attribute_id = as.character(controlled_attribute_id),
-      controlled_value_id     = as.character(controlled_value_id),
+      controlled_value_id = as.character(controlled_value_id),
       attribute = map_chr(controlled_attribute_id, ~ ATTR[[.]] %||% NA_character_),
-      value     = map_chr(controlled_value_id, ~ VAL[[.]] %||% NA_character_)
+      value = map_chr(controlled_value_id, ~ VAL[[.]] %||% NA_character_)
     ) %>%
-    select(id, attribute, value) %>%
-    left_join(obs_df, by="id")
+    select(id, attribute, value)
 })
+
+# join observation and annotation data, keep all observation columns first
+annotations_data <- if (nrow(annotation_rows) > 0L) {
+  inner_join(obs_df, annotation_rows, by = "id")
+} else {
+  annotation_rows
+}
 
 # Write to CSV
 output_file <- "annotations.csv" # if the data are to be written in a folder path add that here (e.g., "Data/observations.csv")
-write.csv(annotations_df, file = output_file, row.names = FALSE)
+csv_out <- if (nrow(annotations_data) > 0L) annotations_data else obs_df
+csv_out <- csv_out %>% select(where(~ typeof(.) != "list"))
+write.csv(csv_out, file = output_file, row.names = FALSE)
 cat("\nData written to", output_file, "\n")
-cat("Rows:", nrow(csv_data), ", Columns:", ncol(csv_data), "\n")
+cat("Rows:", nrow(csv_out), ", Columns:", ncol(csv_out), "\n")

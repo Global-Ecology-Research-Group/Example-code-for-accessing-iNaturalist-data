@@ -26,6 +26,12 @@ There are many available resources for accessing data via the API. Here we list 
 
 [User guide to pyinaturalist:](https://pyinaturalist.readthedocs.io/en/stable/user_guide/index.html) A comprehensive guide to using the pyinaturalist package to download iNaturalist data.
 
+[Python for beginners](https://www.python.org/about/gettingstarted/): An introduction to installing Python and finding learning resources. Using the example scripts assumes basic familiarity with Python.
+
+[Requests: HTTP for Humans](https://requests.readthedocs.io/en/latest/): Documentation for the Requests library, used in several example scripts to call the iNaturalist API over HTTP.
+
+[pandas User Guide](https://pandas.pydata.org/docs/user_guide/index.html): Topic-based documentation for pandas. The example scripts use pandas to load, reshape, and summarize observation data in tables.
+
 ## Help Page
 
 [iNatForum:](https://forum.inaturalist.org/) Any questions related to iNaturalist—including request URLs or coding questions—can be posted on the iNatForum. Start by searching the forum to see if your question has already been asked and answered. If not, you can create a new post to request help from the iNaturalist community.

@@ -1,10 +1,10 @@
-# Code to get identifers matching search criteria
+# Code to get identifiers matching search criteria
 
 # The output is a table of identifiers and counts of identifications that match the filters, plus a CSV.
 # The API returns at most 500 identifiers.
 
 # Check and install required packages
-required_packages <- c("httr", "jsonlite", "dplyr", "purrr")
+required_packages <- c("httr", "jsonlite", "dplyr")
 
 for (pkg in required_packages) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
@@ -17,15 +17,13 @@ for (pkg in required_packages) {
 library(httr)
 library(jsonlite)
 library(dplyr)
-library(purrr)
 
 # Get the base URL
-base_url <- "https://api.inaturalist.org/v2/observations/identifiers"
-rate_limit_delay <- 1  # seconds between requests (60 requests per minute max)
+base_url <- "https://api.inaturalist.org/v2/identifications/identifiers"
 
 # Before creating a customized request, the v2 API requires that users specify desired data fields
 # The code below will provide an example of all data available from iNaturalist along with field names
-fields <- fromJSON(content(GET("https://api.inaturalist.org/v2/observations?fields=all"), as = "text", encoding = "UTF-8"))
+fields <- fromJSON(content(GET("https://api.inaturalist.org/v2/identifications/identifiers?fields=all"), as = "text", encoding = "UTF-8"))
 colnames(fields$results)
 
 # Use this code to customize the request
@@ -42,92 +40,48 @@ params <- list(
   d1 = "2025-01-01",                         
   d2 = "2025-04-30",
   
-  # Specify desired data fields (see lines 28-29 above for all available fields)
+  # Specify desired data fields (see lines 24-27 above for all available fields)
   fields = paste("count", "user.id", "user.login", "user.created_at", "user.name", "user.observations_count",
                  "user.identifications_count", sep=","),
   
-  # Set per page to the maximum allowed
-  per_page = 200                         
+  # Maximum results for this endpoint
+  per_page = 500
 )
-
-# Make one test request and document the run time
-start_time <- Sys.time()
 
 response <- GET(base_url, query = params)
 stop_for_status(response)
 
-end_time <- Sys.time()
+data_parsed <- fromJSON(content(response, as = "text", encoding = "UTF-8"), flatten = TRUE)
 
-time_per_request <- as.numeric(end_time - start_time, units = "secs")
-
-# Parse JSON
-data_parsed <- fromJSON(content(response, as = "text", encoding = "UTF-8"))
-
-# Extract total results and compute pages
 total_results <- data_parsed$total_results
-total_pages <- ceiling(total_results / params$per_page)
+message(
+  "Total identifier rows (API): ",
+  if (is.null(total_results)) "(not reported)" else as.integer(total_results)
+)
 
-# Estimate runtime given 1 second between requests
-# This lag ensures that no more than 60 requests are made per minute to meet the iNaturalist rate limits
-rate_limit_pause <- time_per_request + rate_limit_delay
-estimated_seconds <- total_pages * rate_limit_pause
-estimated_minutes <- estimated_seconds / 60
+res <- data_parsed$results
+output_data <- if (is.null(res)) tibble() else as_tibble(res)
 
-message("Total observations: ", total_results)
-message("Estimated pages: ", total_pages)
-message(sprintf("Rough estimate of runtime: ~%.1f seconds (~%.1f minutes)", 
-                estimated_seconds, estimated_minutes))
-# keep in mind that the actual time is variable on how long each individual request takes which is not always consistent
-# If total observations is greater than 500, then this script will only return the first 500 results.
-
-# Fetch all observations
-page <- 1
-all_pages <- list()
-
-repeat {
-  message("Fetching page ", page)
-  
-  # Build URL
-  query_url <- modifyList(params, list(page = page))
-  response <- GET(base_url, query = query_url)
-  
-  stop_for_status(response)
-  
-  data_json <- content(response, as = "text", encoding = "UTF-8")
-  data_parsed <- fromJSON(data_json, flatten = TRUE)
-  
-  results_df <- as_tibble(data_parsed$results)
-  
-  # Stop if no results
-  if (nrow(results_df) == 0) {
-    message("No more results, stopping.")
-    break
-  }
-  
-  # Append this page's results
-  all_pages[[page]] <- results_df
-  
-  page <- page + 1
-  
-  Sys.sleep(rate_limit_delay)
+message("Rows in this response: ", nrow(output_data))
+if (!is.null(total_results) && as.integer(total_results) > nrow(output_data)) {
+  message(
+    "Note: total_results is larger than the rows in this response — ",
+    "this endpoint returns at most 500 ranked identifiers total, ",
+    "so this response is only a subset."
+  )
 }
-
-# Combine all pages
-output_data <- bind_rows(all_pages)
 
 # Examine data
 head(output_data)
 
-# Print total observations
-cat("Total data fetched:", nrow(output_data), "\n")
-
-# Check to see if output data includes all results for specified endpoint.
-ifelse(total_results > nrow(output_data), 
-       "Note: total_results is larger than the rows in this response — this endpoint returns at most 500 ranked identifiers per request, so this response is only a subset.",
-       "This endpoint returned all results for the specified endpoint")
+cat("Total rows fetched:", nrow(output_data), "\n")
 
 # Write to CSV
-output_file <- "identifer_data.csv" # if the data are to be written in a folder path add that here (e.g., "Data/observations.csv")
-write.csv(output_data, file = output_file, row.names = FALSE)
-cat("\nData written to", output_file, "\n")
-cat("Rows:", nrow(csv_data), ", Columns:", ncol(csv_data), "\n")
+output_file <- "identifier_data.csv" # if the data are to be written in a folder path add that here (e.g., "Data/identifier_data.csv")
+if (nrow(output_data) == 0) {
+  message("No rows returned; not writing ", output_file, ".")
+} else {
+  write.csv(output_data, file = output_file, row.names = FALSE)
+  cat("\nData written to", output_file, "\n")
+  cat("Rows:", nrow(output_data), ", Columns:", ncol(output_data), "\n")
+}

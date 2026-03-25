@@ -4,7 +4,7 @@
 # in the defined dataset, plus a CSV of selected fields. 
 
 # Check and install required packages
-required_packages <- c("httr", "jsonlite", "dplyr", "purrr")
+required_packages <- c("httr", "jsonlite", "dplyr", "tidyr")
 
 for (pkg in required_packages) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
@@ -17,7 +17,7 @@ for (pkg in required_packages) {
 library(httr)
 library(jsonlite)
 library(dplyr)
-library(purrr)
+library(tidyr)
 
 # Get the base URL
 base_url <- "https://api.inaturalist.org/v2/observations/species_counts"
@@ -29,7 +29,7 @@ fields <- fromJSON(content(GET("https://api.inaturalist.org/v2/observations/spec
 colnames(fields$results %>% unnest_wider(taxon, names_sep = "."))
 
 # Use this code to customize the request
-# See https://api.inaturalist.org/v1/docs/#!/Observations/get_observations_species_counts for all possible parameters
+# See https://api.inaturalist.org/v2/docs/#!/Observations/get_observations_species_counts for all possible parameters
 params <- list(
   # taxon ID - flowering plants (Angiospermae) are used in this example
   taxon_id = 47125,       
@@ -47,7 +47,7 @@ params <- list(
   # Research Grade observations only
   quality_grade = "research",
   
-  # Specify desired data fields (see lines 28-29 above for all available fields)
+  # Specify desired data fields (see lines 26-29 above for all available fields)
   fields = paste("count", "taxon.id", "taxon.rank", "taxon.name", "taxon.preferred_common_name",
                  sep=","),
   
@@ -80,7 +80,7 @@ rate_limit_pause <- time_per_request + rate_limit_delay
 estimated_seconds <- total_pages * rate_limit_pause
 estimated_minutes <- estimated_seconds / 60
 
-message("Total observations: ", total_results)
+message("Total species counts: ", total_results)
 message("Estimated pages: ", total_pages)
 message(sprintf("Rough estimate of runtime: ~%.1f seconds (~%.1f minutes)", 
                 estimated_seconds, estimated_minutes))
@@ -119,55 +119,3 @@ output_file <- "species_counts.csv" # if the data are to be written in a folder 
 write.csv(output_data, file = output_file, row.names = FALSE)
 message("\nData written to ", output_file)
 message("Rows: ", nrow(output_data), ", Columns: ", ncol(output_data))
-
-
-
-
-
-page <- 1
-all_pages <- list()
-
-repeat {
-  message("Fetching page ", page)
-  
-  # Build URL
-  query_url <- modifyList(params, list(page = page))
-  response <- GET(base_url, query = query_url)
-  
-  stop_for_status(response)
-  
-  data_json <- content(response, as = "text", encoding = "UTF-8")
-  data_parsed <- fromJSON(data_json, flatten = TRUE)
-  
-  results_df <- as_tibble(data_parsed$results)
-  
-  # Stop if no results
-  if (nrow(results_df) == 0) {
-    message("No more results, stopping.")
-    break
-  }
-  
-  # Append this page's results
-  all_pages[[page]] <- results_df
-  
-  # Calculate total pages from total_results if available
-  total_results <- data_parsed$total_results
-  total_pages <- ceiling(total_results / params$per_page)
-  
-  if (page >= total_pages) {
-    message("Reached last page: ", page)
-    break
-  }
-  
-  page <- page + 1
-  
-  # Rate limit control: 60 requests per minute
-  Sys.sleep(rate_limit_delay) 
-}
-
-# Combine all pages
-output_data <- bind_rows(all_pages)
-print(output_data)
-
-# Convert to a data frame
-output_data <- as.data.frame(output_data)
