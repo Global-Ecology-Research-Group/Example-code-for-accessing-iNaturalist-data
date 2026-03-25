@@ -4,11 +4,11 @@ This repository contains supplemental resources and example code for accessing i
 
 ## References
 
-[External resources](https://github.com/brittanymmason/iNaturalist-best-practices/blob/main/Resources/External_resources.md)
+[External resources](https://github.com/Global-Ecology-Research-Group/Example-code-for-accessing-iNaturalist-data/blob/main/Resources/External_resources.md)
 
-[Introduction to modifying request URLs for the API](https://github.com/brittanymmason/iNaturalist-best-practices/blob/main/Resources/how_to_modify_url.md)
+[Introduction to modifying request URLs for the API](https://github.com/Global-Ecology-Research-Group/Example-code-for-accessing-iNaturalist-data/blob/main/Resources/how_to_modify_url.md)
 
-[Introduction on how to batch query data](https://github.com/brittanymmason/iNaturalist-best-practices/blob/main/Resources/Batch_query.md)
+[Introduction on how to batch query data](https://github.com/Global-Ecology-Research-Group/Example-code-for-accessing-iNaturalist-data/blob/main/Resources/Batch_query.md)
 
 ## Example Python Code
 
